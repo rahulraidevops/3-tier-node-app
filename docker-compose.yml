@@ -1,8 +1,9 @@
 version: "3.9"
 services:
   frontend:
-    build: ./frontend
+    image: rahulrai9/frontend-app:${FRONTEND_IMAGE_TAG:-latest}
     container_name: frontend-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
     networks:
@@ -11,12 +12,12 @@ services:
       - backend
 
   backend:
-    build: ./backend
+    image: rahulrai9/backend-app:${BACKEND_IMAGE_TAG:-latest}
     container_name: backend-app
+    restart: unless-stopped
     environment:
+      - NODE_ENV=production
       - MONGO_URL=mongodb://mongo:27017/mydb
-    ports:
-      - "5000:5000"
     networks:
       - nodeapp-nw
     depends_on:
@@ -25,8 +26,7 @@ services:
   db:
     image: mongo:6
     container_name: mongo
-    ports:
-      - "27017:27017"
+    restart: unless-stopped
     networks:
       - nodeapp-nw
     volumes:
@@ -34,6 +34,7 @@ services:
 
 networks:
   nodeapp-nw:
+    driver: bridge
 
 volumes:
   mongo-data:

@@ -1,0 +1,4 @@
+backend-app:
+  image: docker.io/rahulrai9/backend-app:latest
+frontend-app:
+  image: docker.io/rahulrai9/frontend-app:latest
