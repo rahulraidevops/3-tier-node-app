@@ -11,15 +11,17 @@ env:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
+
+    # ✅ Job-level outputs (defined here, not inside steps)
     outputs:
-      backend_image: ${{ steps.backend.outputs.image }}
-      frontend_image: ${{ steps.frontend.outputs.image }}
+      backend_image: ${{ steps.set_backend_output.outputs.image }}
+      frontend_image: ${{ steps.set_frontend_output.outputs.image }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for multi-arch, optional)
+      - name: Set up QEMU (optional for multi-arch)
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
@@ -32,8 +34,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # --- BACKEND IMAGE ---
       - name: Build and push backend image
-        id: backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -41,12 +43,14 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/backend-app:latest
             ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/backend-app:${{ github.sha }}
-        # expose output if you need it
-        outputs:
-          image: ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/backend-app:${{ github.sha }}
 
+      # ✅ Store backend image tag as job output
+      - name: Set backend image output
+        id: set_backend_output
+        run: echo "image=${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/backend-app:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      # --- FRONTEND IMAGE ---
       - name: Build and push frontend image
-        id: frontend
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -56,12 +60,17 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/frontend-app:latest
             ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/frontend-app:${{ github.sha }}
-        outputs:
-          image: ${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/frontend-app:${{ github.sha }}
 
+      # ✅ Store frontend image tag as job output
+      - name: Set frontend image output
+        id: set_frontend_output
+        run: echo "image=${{ env.REGISTRY }}/${{ env.REPO_PREFIX }}/frontend-app:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # --- DEPLOY JOB ---
   deploy:
     needs: build_and_push
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,8 +83,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Copy compose file to server (optional)
-        # If you want to update compose file on server from repo:
+      - name: Copy docker-compose.prod.yml to server
         run: |
           scp -o StrictHostKeyChecking=no docker-compose.prod.yml ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_DIR }}/docker-compose.prod.yml
 
@@ -83,7 +91,6 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             cd ${{ secrets.DEPLOY_DIR }} || exit 1
-            # Optional: log in to docker hub on server (not necessary if using docker pull with public images)
             docker logout || true
             docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
             docker compose pull
