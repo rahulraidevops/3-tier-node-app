@@ -85,7 +85,7 @@ jobs:
 
       - name: Copy docker-compose.prod.yml to server
         run: |
-          scp -o StrictHostKeyChecking=no docker-compose.prod.yml ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_DIR }}/docker-compose.prod.yml
+          scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_DIR }}/docker-compose.prod.yml
 
       - name: Deploy - pull images and restart
         run: |
