@@ -89,11 +89,23 @@ jobs:
 
       - name: Deploy - pull images and restart
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
-            cd ${{ secrets.DEPLOY_DIR }} || exit 1
-            docker logout || true
-            docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << EOF
+            DEPLOY_DIR="${{ secrets.DEPLOY_DIR }}"
+            echo "👉 Deploying to \$DEPLOY_DIR"
+            cd \$DEPLOY_DIR || { echo "❌ Directory not found: \$DEPLOY_DIR"; exit 1; }
+
+            echo "👉 Docker Compose version:"
+            docker compose version
+
+            echo "👉 Listing files:"
+            ls -la
+
+            echo "👉 Pulling new images..."
+            docker compose -f docker-compose.prod.yml pull
+
+            echo "👉 Starting containers..."
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "👉 Showing running containers..."
+            docker ps
           EOF
